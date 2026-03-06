@@ -98,19 +98,31 @@ def list_products():
     """Returns a list of Products"""
     app.logger.info("Request to list Products...")
 
-    products = []
     name = request.args.get("name")
+    description = request.args.get("description")
+    available = request.args.get("available")
+    category = request.args.get("category")
+
+    app.logger.info(
+        "Search params name=%s, description=%s, available=%s, category=%s",
+        name, description, available, category
+    )
 
     if name:
-        app.logger.info("Find by name: %s", name)
         products = Product.find_by_name(name)
+    elif description:
+        products = Product.query.filter(Product.description == description)
+    elif available:
+        is_available = available.lower() == "true"
+        products = Product.find_by_availability(is_available)
+    elif category:
+        products = Product.find_by_category(Category[category.upper()])
     else:
-        app.logger.info("Find all")
         products = Product.all()
 
     results = [product.serialize() for product in products]
     app.logger.info("[%s] Products returned", len(results))
-    return results, status.HTTP_200_OK
+    return jsonify(results), status.HTTP_200_OK
 
 
 ######################################################################
@@ -146,12 +158,16 @@ def update_products(product_id):
 
     product = Product.find(product_id)
     if not product:
-        abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found.")
+        abort(
+            status.HTTP_404_NOT_FOUND,
+            f"Product with id '{product_id}' was not found."
+        )
 
     product.deserialize(request.get_json())
     product.id = product_id
     product.update()
-    return product.serialize(), status.HTTP_200_OK
+    return jsonify(product.serialize()), status.HTTP_200_OK
+
 
 ######################################################################
 # DELETE A PRODUCT
